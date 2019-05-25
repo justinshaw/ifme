@@ -1,17 +1,63 @@
 version: '3.7'
+x-service: &service
+  build:
+    context: .
+    dockerfile: Dockerfile
+  # env_file: .env
+  environment:
+    # There's duplication here because updates would need to be made to
+    # database.yml in order to DRY things up. Postgres automatically
+    # understands PGHOST, PGPASSWORD, etc. and these environment variables
+    # should be preferred.
+    PGHOST: db
+    PGPASSWORD: ifme
+    PGUSER: ifme
+    PSQL_HOST: db
+    PSQL_PASSWORD: ifme
+    PSQL_USERNAME: ifme
+    PROJECT_NAME: ifme
+    RAILS_ENV: development
+  entrypoint: .local/docker-entrypoint-app.sh
+  image: ifme
+  restart: on-failure
+  volumes:
+    - .:/app:delegated
+
 services:
-  psql:
-    image: postgres:9.6
-    container_name: ifme_pg
+  db:
+    command: ['-c', 'fsync=off']
+    image: postgres:9.6-alpine
     environment:
-      - POSTGRES_PASSWORD=
-  app:
-    build: .
-    container_name: ifme_app
+      POSTGRES_USER: ifme
+      POSTGRES_PASSWORD: ifme
     ports:
-      - "3000:3000"
-    depends_on:
-      - psql
+      - 5433:5432
+    volumes:
+      - ./.local/db:/var/lib/postgresql/data:delegated
+  app:
+    <<: *service
+    command: ['rails', 'server', '--pid=/tmp/server.pid', '--binding=0.0.0.0']
+    depends_on: ['db']
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 1m30s
+      timeout: 20s
+      retries: 3
+      start_period: 40s
+    ports:
+      - 3000:3000
+    stdin_open: true
+    tty: true
+  test:
+    <<: *service
+    command: ['spring', 'server']
+    depends_on: ['db']
     environment:
-      - PSQL_USERNAME=postgres
-      - PSQL_HOST=psql
+      PGHOST: db
+      PGUSER: ifme
+      PGPASSWORD: ifme
+      PSQL_HOST: db
+      PSQL_PASSWORD: ifme
+      PSQL_USERNAME: ifme
+      PROJECT_NAME: ifme
+      RAILS_ENV: test
