@@ -15,27 +15,18 @@ RUN apk update && apk add \
     postgresql-dev \
     tzdata \
   && npm install --global yarn \
-  && addgroup --system ifme \
-  && adduser \
-    -G ifme \
-    -h /home/ifme \
-    -S \
-     ifme \
-  && mkdir -p "/app" "/node_modules" \
-  && chown ifme:ifme "/app" "/node_modules" \
-  # install node modules outside of /app
+  && mkdir "/node_modules" \
   && echo "--install.modules-folder /node_modules" > /.yarnrc
 
 WORKDIR /app
-USER ifme:ifme
 
 # add gems and npm packages before our code, so Docker can cache them
 # see http://ilikestuffblog.com/2014/01/06/
-COPY --chown=ifme:ifme Gemfile Gemfile.lock package.json ./
-COPY --chown=ifme:ifme client/package.json client/yarn.lock ./client/
+COPY Gemfile Gemfile.lock package.json ./
+COPY client/package.json client/yarn.lock ./client/
+
 RUN bundle install && npm install
 
-COPY --chown=ifme:ifme  . ./
 RUN bundle exec rake assets:precompile
 
 CMD ["foreman", "start", "-f", "Procfile.dev"]
