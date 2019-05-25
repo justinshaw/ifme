@@ -3,13 +3,15 @@ FROM ruby:2.6-alpine
 
 ENV PORT 3000
 ENV PATH /node_modules/.bin:$PATH
+ENV BUNDLER_VERSION 1.17.3
 
-RUN apk update \
-  && apk add \
+RUN apk update && apk add \
+    bash \
     nodejs \
     curl \
     npm \
     build-base \
+    postgresql-client \
     postgresql-dev \
     tzdata \
   && npm install --global yarn \
